@@ -285,3 +285,272 @@ otu_rel_abund %>%
     theme_classic()
 ggsave("/Users/maggieshostak/Desktop/Saipan_2023_2025_R_Studio/Merged_2023_2025_Data/results/family_stacked_barchart.tiff", width=50, height=10, limitsize = FALSE)
 ```
+
+# ASV Table Manipulation for OTU Count Tables
+```{r}
+# Have it so ASV is columns and Sample_ID are rows
+library(tidyverse)
+
+#df1 = ASV_1 through ASV_23820
+df1 <- read.csv("/Users/maggieshostak/Desktop/Saipan_2023_2025_R_Studio/Merged_2023_2025_Data/data/df_otu_1.csv")
+df1
+
+#df1 = ASV_23822 through ASV_37917
+df2 <- read.csv("/Users/maggieshostak/Desktop/Saipan_2023_2025_R_Studio/Merged_2023_2025_Data/data/df_otu_2.csv")
+df2
+
+#df3 = ASV_37918 through ASV_99999
+df3 <- read.csv("/Users/maggieshostak/Desktop/Saipan_2023_2025_R_Studio/Merged_2023_2025_Data/data/df_otu_3.csv")
+df3
+
+df_otu <- list(df1, df2, df3)
+df_otu
+
+write.table(df_otu,"/Users/maggieshostak/Desktop/Saipan_2023_2025_R_Studio/Merged_2023_2025_Data/data/df_otu.csv", sep=",", col.names=NA)
+```
+
+```{r}
+df_otu <- read.csv("/Users/maggieshostak/Desktop/Saipan_2023_2025_R_Studio/Merged_2023_2025_Data/data/df_otu.csv")
+df_otu
+
+otu_count <- Reduce(function(x, y) merge(x, y, all=TRUE), df_otu) %>%
+  pivot_longer(-sample_id, names_to = "ASV", values_to = "count")
+
+write.table(otu_count, "/Users/maggieshostak/Desktop/Saipan_2023_2025_R_Studio/Merged_2023_2025_Data/data/otu_count.csv", sep=",", quote=F, col.names=NA)
+
+otu_count <- read.csv("/Users/maggieshostak/Desktop/Saipan_2023_2025_R_Studio/Merged_2023_2025_Data/data/otu_count.csv")
+otu_count
+
+otu_count %>%
+  group_by(sample_id) %>%
+  mutate(total = sum(count)) %>%
+  filter(total > 5000) %>%
+  group_by(ASV) %>%
+  mutate(total=sum(count)) %>% 
+  filter(total != 0) %>%
+  as.data.frame()
+#Going to set threshold at 5000
+```
+
+# NMDS Plots
+```{r}
+df_meta <- read.csv("/Users/maggieshostak/Desktop/Saipan_2023_2025_R_Studio/Merged_2023_2025_Data/data/metadata_2023_2025.csv")
+df_meta
+
+df_otu <-read.csv("/Users/maggieshostak/Desktop/....df_otu.csv")
+df_otu
+
+nmds_asv_otu_all <- inner_join(df_meta, df_otu, by="sample_id")
+nmds_asv_otu_all
+
+write.table(nmds_asv_otu_all, "/Users/maggieshostak/Desktop/...nmds_asv_otu_all.csv", sep=",", quote=F, col.names=NA)
+```
+
+```{r}
+pc <- read.csv("/Users/maggieshostak/Desktop/...nmds_asv_otu_all.csv")
+pc
+
+#make community matrix: extract columns with ASV information
+com <- pc[,5:ncol(pc)]
+com
+
+#turn ASV information into a matrix
+m_com <- as.matrix(com)
+
+#Run NMDS using Bray-Curtis distance
+set.seed(123)
+nmds <- metaMDS(m_com, distance="bray") #stress = 0.1244532 
+nmds
+plot(nmds)
+
+#access the specific points data of the NMDS plot & scores
+str(nmds)
+nmds$points
+scores(nmds)
+
+#extract NMDS scores
+data.scores = as.data.frame(scores(nmds)$sites)
+
+#add columns to data frame
+data.scores$sample_id = pc$sample_id
+data.scores$location = pc$location
+data.scores$depth = pc$depth
+data.scores$sample_type = pc$sample_type
+
+head(data.scores)
+```
+
+```{r}
+# Samples by Wreck
+xx = ggplot(data.scores, aes(x = NMDS1, y = NMDS2)) +
+ geom_point(size = 3, aes(colour = location))+
+  scale_fill_discrete()+
+  ggtitle("NMDS Ordination - Samples Across Site")+
+ theme(axis.text.y = element_text(colour = "black", size = 10, face = "bold"),
+       axis.text.x = element_text(colour = "black", face = "bold", size = 12),
+       legend.text = element_text(size = 12, face ="bold", colour ="black"),
+       legend.position = "right", axis.title.y = element_text(face = "bold", size = 14),
+       axis.title.x = element_text(face = "bold", size = 14, colour = "black"),
+       legend.title = element_text(size = 14, colour = "black", face = "bold"),
+       panel.background = element_blank(), panel.border = element_rect(colour = "black", fill = NA, size = 1.5),
+       legend.key=element_blank()) +
+ labs(x = "NMDS1", colour = "location", y = "NMDS2")
+xx
+ggsave("/Users/maggieshostak/Desktop/....NMDS_all_samples_location.tiff", width = 10, height = 10)
+```
+
+```{r}
+# Samples by Type
+xx1 = ggplot(data.scores, aes(x = NMDS1, y = NMDS2)) +
+ geom_point(size = 3, aes(colour = sample_type))+
+  scale_fill_discrete()+
+  ggtitle("NMDS Ordination - Samples Across Site")+
+ theme(axis.text.y = element_text(colour = "black", size = 10, face = "bold"),
+       axis.text.x = element_text(colour = "black", face = "bold", size = 12),
+       legend.text = element_text(size = 12, face ="bold", colour ="black"),
+       legend.position = "right", axis.title.y = element_text(face = "bold", size = 14),
+       axis.title.x = element_text(face = "bold", size = 14, colour = "black"),
+       legend.title = element_text(size = 14, colour = "black", face = "bold"),
+       panel.background = element_blank(), panel.border = element_rect(colour = "black", fill = NA, size = 1.5),
+       legend.key=element_blank()) +
+ labs(x = "NMDS1", colour = "Sample Type", y = "NMDS2")
+xx1
+ggsave("/Users/maggieshostak/Desktop...NMDS_all_samples_sample_type.tiff", width = 10, height = 10)
+```
+
+# Diversity Testing
+```{r}
+richness <- function(x){
+  sum(x > 0)}
+
+shannon <- function(x){
+  relabund <- x[x>0]/sum(x)
+  -sum(relabund * log(relabund))
+}
+
+simpson <- function(x){
+  n <- sum(x)
+  sum(x * (x-1) /(n*n-1))
+}
+
+
+richness_biof <- function(x){
+  sum(x > 0)}
+
+shannon_biof <- function(x){
+  relabund <- x[x>0]/sum(x)
+  -sum(relabund * log(relabund))
+}
+
+simpson_biof <- function(x){
+  n <- sum(x)
+  sum(x * (x-1) /(n*n-1))
+}
+```
+
+```{r}
+otu_count_all <- otu_count_all %>%
+  group_by(sample_id) %>%
+  summarize(richness = richness(count),
+            shannon = shannon(count), 
+            evenness = shannon/log(richness),
+            n=sum(count))
+
+write.table(otu_count_all, "/Users/maggieshostak/Desktop/...otu_count_all_diversity_metrics.csv", sep=",", quote=F, col.names=NA)
+
+diversity_metrics <- read.csv("/Users/maggieshostak/Desktop/...otu_count_all_diversity_metrics.csv")
+diversity_metrics
+
+write.table(diversity_metrics, "/Users/maggieshostak/Desktop/...saipan_all_diversity_metrics.csv", sep=",", quote=F, col.names=NA)
+```
+
+```{r}
+# Boxplots
+diversity_metrics <- read.csv("/Users/maggieshostak/Desktop/...saipan_all_diversity_metrics.csv")
+diversity_metrics
+
+diversity_metrics %>%
+  group_by(location) %>%
+  pivot_longer(cols=c(richness, shannon, evenness), 
+               names_to="metric") %>%
+ggplot(aes(x=n, y=value, fill= sample_type)) +
+  geom_boxplot(outlier.color = "black", outlier.shape = 8, outlier.size = 2) +
+  facet_wrap(~metric, nrow=4, scales="free_y")
+
+ggsave("/Users/maggieshostak/Desktop/...alpha_diversity_metrics_all_sample_type.tiff", width = 10, height = 20)
+
+diversity_metrics %>%
+  group_by(location) %>%
+  pivot_longer(cols=c(richness, shannon, evenness), 
+               names_to="metric") %>%
+ggplot(aes(x=n, y=value, fill= location)) +
+  geom_boxplot(outlier.color = "black", outlier.shape = 8, outlier.size = 2) +
+  facet_wrap(~metric, nrow=4, scales="free_y")
+
+ggsave("/Users/maggieshostak/Desktop/...alpha_diversity_metrics_all_sample_location.tiff", width = 10, height = 20)
+
+#Each point represents a sample, (n) Sum of Count, (X) Total number of sequences for each sample & (Y) Value of diversity metric
+```
+
+```{r}
+# Alternative Method
+otu_table <- read.csv("/Users/maggieshostak/Desktop/...asv_otu_saipan.csv", header=T, row.names=1, check.names=FALSE)
+
+## Transpose the data to have sample names on rows
+otu.table.diver <- t(otu_table)
+otu.table.diver <- as.data.frame(otu.table.diver)
+head(otu.table.diver)
+
+write.table(otu.table.diver,"/Users/maggieshostak/Desktop/...otu.table.diver.csv", sep=",", quote=F, col.names=NA)
+
+otu.table.diver <- read.csv("/Users/maggieshostak/Desktop/...otu.table.diver.csv")
+otu.table.diver
+
+data(otu.table.diver)
+H <- diversity(otu.table.diver)
+H
+
+richness <- specnumber(otu.table.diver)
+richness
+
+evenness <- H/log(richness)
+evenness
+
+metadata <- read.csv("/Users/maggieshostak/Desktop/...metadata_2023_2025.csv")
+metadata
+
+alpha <- cbind(shannon = H, richness = richness, pielou = evenness, metadata)
+write.csv(alpha, "/Users/maggieshostak/Desktop/...diversity_indices_bio_sed_water.csv")
+head(alpha)
+
+## Boxplot by Sample Location
+plot.shan <- ggplot(alpha, aes(x = location, y = shannon, fill = location)) +
+geom_boxplot(size = 0.5, outlier.color = "black", outlier.shape = 8, outlier.size = 2) +
+ylab("Shannon's H'") + 
+xlab("") +
+theme_bw() +
+theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.4))
+plot.shan
+
+plot.rich <-ggplot(alpha, aes(x = location, y = richness, fill = location)) +
+geom_boxplot(size = 0.5, outlier.color = "black", outlier.shape = 8, outlier.size = 2) +
+ylab("Species Richness") +
+xlab("") +
+theme_bw() +
+theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.4))
+plot.rich
+
+plot.even <- ggplot(alpha, aes(x = location, y = pielou, fill = location)) +
+geom_boxplot(size = 0.5, outlier.color = "black", outlier.shape = 8, outlier.size = 2) +
+ylab("Pielou's Evenness") +
+xlab("") +
+theme_bw() +
+theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.4))
+plot.even
+
+legend <- get_legend(plot.even)
+
+plot_grid(plot.shan + theme(legend.position = "none"), plot.rich + theme(legend.position = "none"), plot.even + theme(legend.position = "none"),ncol = 3)
+
+ggsave("/Users/maggieshostak/Desktop/...Shannon_Richness_Eveness_all.tiff")
+```
