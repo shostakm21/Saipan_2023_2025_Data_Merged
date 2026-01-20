@@ -204,9 +204,11 @@ OTU_TAX_table <- merge(asv_otu, asv_tax, by=0)
 metadata <- read.csv("/Users/maggieshostak/Desktop/Saipan_2023_2025_R_Studio/Merged_2023_2025_Data/data/metadata_2023_2025.csv")
 metadata
 
-otu_counts <- read.csv("/Users/maggieshostak/Desktop/Saipan_2023_2025_R_Studio/Merged_2023_2025_Data/data/asv_otu.csv") %>%
+otu_count <- read.csv("/Users/maggieshostak/Desktop/Saipan_2023_2025_R_Studio/Merged_2023_2025_Data/data/asv_otu.csv") %>%
   pivot_longer(-ASV, names_to="sample_id", values_to = "count")
-otu_counts
+otu_count
+
+write.table(otu_count, "/Users/maggieshostak/Desktop/Saipan_2023_2025_R_Studio/Merged_2023_2025_Data/data/otu_count.csv", sep=",", quote=F, col.names=NA)
 
 taxonomy <- read.csv("/Users/maggieshostak/Desktop/Saipan_2023_2025_R_Studio/Merged_2023_2025_Data/data/asv_tax.csv")
 taxonomy
@@ -313,7 +315,7 @@ write.table(df_otu,"/Users/maggieshostak/Desktop/Saipan_2023_2025_R_Studio/Merge
 df_otu <- read.csv("/Users/maggieshostak/Desktop/Saipan_2023_2025_R_Studio/Merged_2023_2025_Data/data/df_otu.csv")
 df_otu
 
-otu_count <- Reduce(function(x, y) merge(x, y, all=TRUE), df_otu) %>%
+otu_count <- df_otu %>% select (-c(X)) %>%
   pivot_longer(-sample_id, names_to = "ASV", values_to = "count")
 
 write.table(otu_count, "/Users/maggieshostak/Desktop/Saipan_2023_2025_R_Studio/Merged_2023_2025_Data/data/otu_count.csv", sep=",", quote=F, col.names=NA)
@@ -334,29 +336,32 @@ otu_count %>%
 
 # NMDS Plots
 ```{r}
-df_meta <- read.csv("/Users/maggieshostak/Desktop/Saipan_2023_2025_R_Studio/Merged_2023_2025_Data/data/metadata_2023_2025.csv")
-df_meta
+meta <- read.csv("/Users/maggieshostak/Desktop/Saipan_2023_2025_R_Studio/Merged_2023_2025_Data/data/metadata_2023_2025.csv")
+meta
 
-df_otu <-read.csv("/Users/maggieshostak/Desktop/....df_otu.csv")
+df_otu <-read.csv("/Users/maggieshostak/Desktop/Saipan_2023_2025_R_Studio/Merged_2023_2025_Data/data/df_otu.csv")
 df_otu
 
-nmds_asv_otu_all <- inner_join(df_meta, df_otu, by="sample_id")
-nmds_asv_otu_all
+nmds_asv_otu <- inner_join(meta, df_otu, by="sample_id")
+nmds_asv_otu
 
-write.table(nmds_asv_otu_all, "/Users/maggieshostak/Desktop/...nmds_asv_otu_all.csv", sep=",", quote=F, col.names=NA)
+write.table(nmds_asv_otu, "/Users/maggieshostak/Desktop/Saipan_2023_2025_R_Studio/Merged_2023_2025_Data/data/nmds_asv_otu.csv", sep=",", quote=F, col.names=NA)
 ```
 
 ```{r}
-pc <- read.csv("/Users/maggieshostak/Desktop/...nmds_asv_otu_all.csv")
+pc <- read.csv("/Users/maggieshostak/Desktop/Saipan_2023_2025_R_Studio/Merged_2023_2025_Data/data/nmds_asv_otu.csv")
 pc
 
 #make community matrix: extract columns with ASV information
-com <- pc[,5:ncol(pc)]
+com <- pc[,9:ncol(pc)]
 com
 
 #turn ASV information into a matrix
 m_com <- as.matrix(com)
+m_com
+```
 
+```{r}
 #Run NMDS using Bray-Curtis distance
 set.seed(123)
 nmds <- metaMDS(m_com, distance="bray") #stress = 0.1244532 
@@ -376,6 +381,7 @@ data.scores$sample_id = pc$sample_id
 data.scores$location = pc$location
 data.scores$depth = pc$depth
 data.scores$sample_type = pc$sample_type
+data.scores$sample_year = pc$sample_year
 
 head(data.scores)
 ```
@@ -396,7 +402,7 @@ xx = ggplot(data.scores, aes(x = NMDS1, y = NMDS2)) +
        legend.key=element_blank()) +
  labs(x = "NMDS1", colour = "location", y = "NMDS2")
 xx
-ggsave("/Users/maggieshostak/Desktop/....NMDS_all_samples_location.tiff", width = 10, height = 10)
+ggsave("/Users/maggieshostak/Desktop/Saipan_2023_2025_R_Studio/Merged_2023_2025_Data/results/NMDS_sample_location.tiff", width = 10, height = 10)
 ```
 
 ```{r}
@@ -415,7 +421,26 @@ xx1 = ggplot(data.scores, aes(x = NMDS1, y = NMDS2)) +
        legend.key=element_blank()) +
  labs(x = "NMDS1", colour = "Sample Type", y = "NMDS2")
 xx1
-ggsave("/Users/maggieshostak/Desktop...NMDS_all_samples_sample_type.tiff", width = 10, height = 10)
+ggsave("/Users/maggieshostak/Desktop/Saipan_2023_2025_R_Studio/Merged_2023_2025_Data/results/NMDS_sample_type.tiff", width = 10, height = 10)
+```
+
+```{r}
+# Samples by Year
+xx2 = ggplot(data.scores, aes(x = NMDS1, y = NMDS2)) +
+ geom_point(size = 3, aes(colour = sample_year))+
+  scale_fill_discrete()+
+  ggtitle("NMDS Ordination - Samples Across Site")+
+ theme(axis.text.y = element_text(colour = "black", size = 10, face = "bold"),
+       axis.text.x = element_text(colour = "black", face = "bold", size = 12),
+       legend.text = element_text(size = 12, face ="bold", colour ="black"),
+       legend.position = "right", axis.title.y = element_text(face = "bold", size = 14),
+       axis.title.x = element_text(face = "bold", size = 14, colour = "black"),
+       legend.title = element_text(size = 14, colour = "black", face = "bold"),
+       panel.background = element_blank(), panel.border = element_rect(colour = "black", fill = NA, size = 1.5),
+       legend.key=element_blank()) +
+ labs(x = "NMDS1", colour = "Sample Year", y = "NMDS2")
+xx2
+ggsave("/Users/maggieshostak/Desktop/Saipan_2023_2025_R_Studio/Merged_2023_2025_Data/results/NMDS_sample_year.tiff", width = 10, height = 10)
 ```
 
 # Diversity Testing
@@ -449,24 +474,24 @@ simpson_biof <- function(x){
 ```
 
 ```{r}
-otu_count_all <- otu_count_all %>%
+otu_count <- otu_count %>%
   group_by(sample_id) %>%
   summarize(richness = richness(count),
             shannon = shannon(count), 
             evenness = shannon/log(richness),
             n=sum(count))
 
-write.table(otu_count_all, "/Users/maggieshostak/Desktop/...otu_count_all_diversity_metrics.csv", sep=",", quote=F, col.names=NA)
+write.table(otu_count, "/Users/maggieshostak/Desktop/Saipan_2023_2025_R_Studio/Merged_2023_2025_Data/data/otu_count_all_diversity_metrics.csv", sep=",", quote=F, col.names=NA)
 
-diversity_metrics <- read.csv("/Users/maggieshostak/Desktop/...otu_count_all_diversity_metrics.csv")
+diversity_metrics <- read.csv("/Users/maggieshostak/Desktop/Saipan_2023_2025_R_Studio/Merged_2023_2025_Data/data/otu_count_all_diversity_metrics.csv")
 diversity_metrics
 
-write.table(diversity_metrics, "/Users/maggieshostak/Desktop/...saipan_all_diversity_metrics.csv", sep=",", quote=F, col.names=NA)
+write.table(diversity_metrics, "/Users/maggieshostak/Desktop/Saipan_2023_2025_R_Studio/Merged_2023_2025_Data/data/saipan_all_diversity_metrics.csv", sep=",", quote=F, col.names=NA)
 ```
 
 ```{r}
 # Boxplots
-diversity_metrics <- read.csv("/Users/maggieshostak/Desktop/...saipan_all_diversity_metrics.csv")
+diversity_metrics <- read.csv("/Users/maggieshostak/Desktop/Saipan_2023_2025_R_Studio/Merged_2023_2025_Data/data/saipan_all_diversity_metrics.csv")
 diversity_metrics
 
 diversity_metrics %>%
@@ -477,7 +502,7 @@ ggplot(aes(x=n, y=value, fill= sample_type)) +
   geom_boxplot(outlier.color = "black", outlier.shape = 8, outlier.size = 2) +
   facet_wrap(~metric, nrow=4, scales="free_y")
 
-ggsave("/Users/maggieshostak/Desktop/...alpha_diversity_metrics_all_sample_type.tiff", width = 10, height = 20)
+ggsave("/Users/maggieshostak/Desktop/Saipan_2023_2025_R_Studio/Merged_2023_2025_Data/results/alpha_diversity_metrics_all_sample_type.tiff", width = 10, height = 20)
 
 diversity_metrics %>%
   group_by(location) %>%
@@ -487,23 +512,22 @@ ggplot(aes(x=n, y=value, fill= location)) +
   geom_boxplot(outlier.color = "black", outlier.shape = 8, outlier.size = 2) +
   facet_wrap(~metric, nrow=4, scales="free_y")
 
-ggsave("/Users/maggieshostak/Desktop/...alpha_diversity_metrics_all_sample_location.tiff", width = 10, height = 20)
-
+ggsave("/Users/maggieshostak/Desktop/Saipan_2023_2025_R_Studio/Merged_2023_2025_Data/results/alpha_diversity_metrics_all_sample_location.tiff", width = 10, height = 20)
 #Each point represents a sample, (n) Sum of Count, (X) Total number of sequences for each sample & (Y) Value of diversity metric
 ```
 
 ```{r}
 # Alternative Method
-otu_table <- read.csv("/Users/maggieshostak/Desktop/...asv_otu_saipan.csv", header=T, row.names=1, check.names=FALSE)
+otu_table <- read.csv("/Users/maggieshostak/Desktop/Saipan_2023_2025_R_Studio/Merged_2023_2025_Data/data/asv_otu.csv", header=T, row.names=1, check.names=FALSE)
 
 ## Transpose the data to have sample names on rows
 otu.table.diver <- t(otu_table)
 otu.table.diver <- as.data.frame(otu.table.diver)
 head(otu.table.diver)
 
-write.table(otu.table.diver,"/Users/maggieshostak/Desktop/...otu.table.diver.csv", sep=",", quote=F, col.names=NA)
+write.table(otu.table.diver,"/Users/maggieshostak/Desktop/Saipan_2023_2025_R_Studio/Merged_2023_2025_Data/data/otu.table.diver.csv", sep=",", quote=F, col.names=NA)
 
-otu.table.diver <- read.csv("/Users/maggieshostak/Desktop/...otu.table.diver.csv")
+otu.table.diver <- read.csv("/Users/maggieshostak/Desktop/Saipan_2023_2025_R_Studio/Merged_2023_2025_Data/data/otu.table.diver.csv")
 otu.table.diver
 
 data(otu.table.diver)
@@ -516,11 +540,11 @@ richness
 evenness <- H/log(richness)
 evenness
 
-metadata <- read.csv("/Users/maggieshostak/Desktop/...metadata_2023_2025.csv")
+metadata <- read.csv("/Users/maggieshostak/Desktop/Saipan_2023_2025_R_Studio/Merged_2023_2025_Data/data/metadata_2023_2025.csv")
 metadata
 
 alpha <- cbind(shannon = H, richness = richness, pielou = evenness, metadata)
-write.csv(alpha, "/Users/maggieshostak/Desktop/...diversity_indices_bio_sed_water.csv")
+write.csv(alpha, "/Users/maggieshostak/Desktop/Saipan_2023_2025_R_Studio/Merged_2023_2025_Data/data/diversity_indices_bio_sed_water.csv")
 head(alpha)
 
 ## Boxplot by Sample Location
@@ -552,5 +576,168 @@ legend <- get_legend(plot.even)
 
 plot_grid(plot.shan + theme(legend.position = "none"), plot.rich + theme(legend.position = "none"), plot.even + theme(legend.position = "none"),ncol = 3)
 
-ggsave("/Users/maggieshostak/Desktop/...Shannon_Richness_Eveness_all.tiff")
+ggsave("/Users/maggieshostak/Desktop/Saipan_2023_2025_R_Studio/Merged_2023_2025_Data/data/Shannon_Richness_Eveness_all.tiff")
+```
+
+# Rank Abundance Curves
+```{r}
+library(BiodiversityR)
+BiodiversityRGUI()
+
+library(vegan)
+library(ggplot2)
+library(ggrepel)
+
+saipan <- read.csv("/Users/maggieshostak/Desktop/Saipan_R_Studio/post_rarefaction/saipan_abund_count.csv")
+saipan
+
+str(saipan)
+
+saipan.env <- read.csv("/Users/maggieshostak/Desktop/Saipan_R_Studio/post_rarefaction/saipan.env.csv")
+saipan.env
+
+saipan.env$sample_type<-as.factor(saipan.env$sample_type)
+saipan.env$location<-as.factor(saipan.env$location)
+str(saipan.env)
+
+saipan.env
+
+RankAbun.1 <- rankabundance(saipan)
+RankAbun.1
+
+rankabunplot(RankAbun.1, scale='abundance', addit=FALSE, specnames=c(1,2,3,4,5))
+rankabunplot(RankAbun.1, scale='proportion', addit=FALSE, specnames=c(1,2,3,4,5))
+rankabunplot(RankAbun.1, scale='logabun', addit=FALSE, specnames=c(1:30),srt=45, ylim=c(1,100))
+
+rankabuncomp(saipan, y=saipan.env, factor='location', scale='proportion', legend=FALSE)
+```
+
+```{r}
+otu_counts_5 <- read.csv("/Users/maggieshostak/Desktop/Saipan_2023_2025/asv_otu_top_5_2023.csv") %>%
+  pivot_longer(-ASV, names_to="sample_id", values_to = "count")
+otu_counts_5
+
+Tax_5 <- read.csv("/Users/maggieshostak/Desktop/Saipan_2023_2025/asv_tax_top_5_2023.csv")
+Tax_5
+
+data5 <- otu_counts_5 %>%
+  left_join(Tax_5, by="ASV")
+data5
+
+meta <- read.csv("/Users/maggieshostak/Desktop/Saipan_2023_2025/metadata_saipan.csv")
+meta
+
+data5 <- data5 %>%
+  left_join(meta, by="sample_id")
+data5
+
+write.table(data5, "/Users/maggieshostak/Desktop/Saipan_2023_2025/asv_count_tax_top_5_metadata_2023.csv", sep=",", quote=F, col.names=NA)
+
+data5 %>%
+  ggplot(aes(x = sample_id, y = count)) +
+  facet_grid(~ location, scales = "free_x", space = "free_x") +
+  geom_bar(aes(fill = Phylum), stat = "identity", position = "fill")
+
+ggsave("/Users/maggieshostak/Desktop/Saipan_2023_2025/master_data_table_top_5_plot.tiff", width = 40, height = 20)
+
+data5 %>%
+  ggplot(aes(x = sample_id, y = count)) +
+  facet_grid(~ location + metal_type, scales = "free_x", space = "free_x") +
+  geom_bar(aes(fill = Phylum), stat = "identity", position = "fill")
+
+ggsave("/Users/maggieshostak/Desktop/Saipan_2023_2025/master_data_table_top_5_plot2.tiff", width = 40, height = 20)
+
+data5 %>%
+  ggplot(aes(x = sample_id, y = count)) +
+  facet_grid(~ location, scales = "free_x", space = "free_x") +
+  geom_bar(aes(fill = Phylum), stat = "identity", position = "fill", width = 1) +
+  scale_y_continuous(name = "Relative Abundance",
+                     labels = scales::percent) +
+  scale_fill_brewer(palette = "Paired") +
+  theme(axis.text.x = element_text(angle= 30))#,
+       # axis.text.y = element_text(colour = "black"),
+       # strip.text = element_text(face = "bold"),
+       # strip.background = element_blank ())
+
+ggsave("/Users/maggieshostak/Desktop/Saipan_2023_2025/master_data_table_top_5_plot3.tiff", width = 30, height = 20)
+
+data5 %>%
+  ggplot(aes(x = sample_id, y = count)) +
+  facet_grid(~ location + metal_type, scales = "free_x", space = "free_x") +
+  geom_bar(aes(fill = Phylum), stat = "identity", position = "fill", width = 1) +
+  scale_y_continuous(name = "Relative Abundance",
+                     labels = scales::percent) +
+  scale_fill_brewer(palette = "Paired") +
+  theme(axis.text.x = element_text(angle= 30))#,
+        #axis.text.y = element_text(colour = "black"),
+        #strip.text = element_text(face = "bold"),
+        #strip.background = element_blank ())
+
+ggsave("/Users/maggieshostak/Desktop/Saipan_2023_2025/master_data_table_top_5_plot4.tiff", width = 45, height = 20)
+
+data5 %>%
+  ggplot(aes(x = sample_id, y = count)) +
+  facet_grid(~ location + depth, scales = "free_x", space = "free_x") +
+  geom_bar(aes(fill = Phylum), stat = "identity", position = "fill", width = 1) +
+  scale_y_continuous(name = "Relative Abundance",
+                     labels = scales::percent) +
+  scale_fill_brewer(palette = "Paired") +
+  theme(axis.text.x = element_text(angle= 30))#,
+        #axis.text.y = element_text(colour = "black"),
+        #strip.text = element_text(face = "bold"),
+        #strip.background = element_blank ())
+
+ggsave("/Users/maggieshostak/Desktop/Saipan_2023_2025/master_data_table_top_5_plot5.tiff", width = 35, height = 20)
+```
+
+
+# ANOSIM
+```{r}
+pc_ano <- read.csv("/Users/maggieshostak/Desktop/Saipan_2023_2025_R_Studio/Merged_2023_2025_Data/data/nmds_asv_otu.csv")
+pc_ano
+```
+
+```{r}
+# All Samples: Biof vs Sed vs Water by Location
+com_ano = pc_ano[,9:ncol(pc_ano)]
+m_com_ano = as.matrix(com_ano)
+ano_all = anosim(m_com_ano, pc_ano$location, distance = "bray", permutations = 9999)
+ano_all
+
+# ANOSIM statistic R: 0.1357
+      # Significance: 1e-04
+```
+
+```{r}
+# All Samples: Biof vs Sed vs Water by Sample Type
+com_ano1 = pc_ano[,9:ncol(pc_ano)]
+m_com_ano1 = as.matrix(com_ano1)
+ano_all1 = anosim(m_com_ano1, pc_ano$sample_type, distance = "bray", permutations = 9999)
+ano_all1
+
+# ANOSIM statistic R: 0.5486
+      # Significance: 1e-04
+```
+
+```{r}
+# All Samples: Biof vs Sed vs Water by Depth
+com_ano2 = pc_ano[,9:ncol(pc_ano)]
+m_com_ano2 = as.matrix(com_ano2)
+ano_all2 = anosim(m_com_ano2, pc_ano$depth, distance = "bray", permutations = 9999)
+ano_all2
+
+# ANOSIM statistic R: 0.1488
+      # Significance: 1e-04
+```
+
+```{r}
+# All Samples: Biof vs Sed vs Water by Year
+com_ano2 = pc_ano[,9:ncol(pc_ano)]
+m_com_ano2 = as.matrix(com_ano2)
+ano_all2 = anosim(m_com_ano2, pc_ano$sample_year, distance = "bray", permutations = 9999)
+ano_all2
+
+# ANOSIM statistic R: 0.744
+      # Significance: 1e-04
+
 ```
