@@ -516,20 +516,28 @@ ggsave("/Users/maggieshostak/Desktop/Saipan_2023_2025_R_Studio/Merged_2023_2025_
 #Each point represents a sample, (n) Sum of Count, (X) Total number of sequences for each sample & (Y) Value of diversity metric
 ```
 
+# Alternative Beta Diversity Method
 ```{r}
-# Alternative Method
 otu_table <- read.csv("/Users/maggieshostak/Desktop/Saipan_2023_2025_R_Studio/Merged_2023_2025_Data/data/asv_otu.csv", header=T, row.names=1, check.names=FALSE)
+head(otu_table)
+```
 
+
+```{r}
 ## Transpose the data to have sample names on rows
 otu.table.diver <- t(otu_table)
 otu.table.diver <- as.data.frame(otu.table.diver)
 head(otu.table.diver)
 
 write.table(otu.table.diver,"/Users/maggieshostak/Desktop/Saipan_2023_2025_R_Studio/Merged_2023_2025_Data/data/otu.table.diver.csv", sep=",", quote=F, col.names=NA)
+```
 
+```{r}
 otu.table.diver <- read.csv("/Users/maggieshostak/Desktop/Saipan_2023_2025_R_Studio/Merged_2023_2025_Data/data/otu.table.diver.csv")
 otu.table.diver
+```
 
+```{r}
 data(otu.table.diver)
 H <- diversity(otu.table.diver)
 H
@@ -539,7 +547,9 @@ richness
 
 evenness <- H/log(richness)
 evenness
+```
 
+```{r}
 metadata <- read.csv("/Users/maggieshostak/Desktop/Saipan_2023_2025_R_Studio/Merged_2023_2025_Data/data/metadata_2023_2025.csv")
 metadata
 
@@ -579,8 +589,96 @@ plot_grid(plot.shan + theme(legend.position = "none"), plot.rich + theme(legend.
 ggsave("/Users/maggieshostak/Desktop/Saipan_2023_2025_R_Studio/Merged_2023_2025_Data/data/Shannon_Richness_Eveness_all.tiff")
 ```
 
+## Phyloseq
+```{r}
+library(phyloseq)
+library(Biostrings)
+
+# Read data into R
+otu_tab <- read.csv("/Users/maggieshostak/Desktop/Saipan_2023_2025_R_Studio/Merged_2023_2025_Data/data/asv_otu.csv")
+otu_tab
+
+tax_tab <- read.csv("/Users/maggieshostak/Desktop/Saipan_2023_2025_R_Studio/Merged_2023_2025_Data/data/asv_tax.csv")
+tax_tab
+
+samples_df <- read.csv("/Users/maggieshostak/Desktop/Saipan_2023_2025_R_Studio/Merged_2023_2025_Data/data/metadata_2023_2025.csv")
+samples_df
+```
+
+```{r}
+# Phyloseq objects need to have row.names
+otu_tab <- otu_tab %>%
+  tibble::column_to_rownames("ASV")
+
+tax_tab <- tax_tab %>%
+  tibble::column_to_rownames("ASV")
+
+samples_df <- samples_df %>%
+  tibble::column_to_rownames("sample_id")
+
+# Transform OTU & Tax table into matrices
+otu_tab <- as.matrix(otu_tab)
+tax_tab <- as.matrix(tax_tab)
+
+#Transform into Phyloseq Objects
+ASV = otu_table(otu_tab, taxa_are_rows = TRUE)
+TAX = tax_table(tax_tab)
+sample_id = sample_data(samples_df)
+  
+ps <- phyloseq(ASV, TAX, sample_id)
+ps
+
+#phyloseq-class experiment-level object
+#otu_table()   OTU Table:         [ 43720 taxa and 153 samples ]
+#sample_data() Sample Data:       [ 153 samples by 5 sample variables ]
+#tax_table()   Taxonomy Table:    [ 43720 taxa by 6 taxonomic ranks ]
+
+# Visualize Data
+sample_names(ps)
+rank_names(ps)
+sample_variables(ps)
+
+# Normalize number of reads in each sample using median sequencing depth
+total = median(sample_sums(ps))
+standf = function(x, t=total) round(t * (x / sum(x)))
+ps = transform_sample_counts(ps, standf)
+
+# Bar graphs based on division
+plot_bar(ps, fill = "Phylum")
+
+plot_bar(ps, fill = "Phylum") + 
+  geom_bar(aes(color=Phylum, fill=Phylum), stat="identity", position="stack")
+
+# Heatmaps
+plot_heatmap(ps, method = "NMDS", distance = "bray")
+
+ps_abund <- filter_taxa(ps, function(x) sum(x > total*0.20) > 0, TRUE)
+ps_abund
+
+#phyloseq-class experiment-level object
+#otu_table()   OTU Table:         [ 17 taxa and 153 samples ]
+#sample_data() Sample Data:       [ 153 samples by 5 sample variables ]
+#tax_table()   Taxonomy Table:    [ 17 taxa by 6 taxonomic ranks ]
+#OTU Table:          [8 taxa and 5 samples]
+
+otu_table(ps)[1:8, 1:5]
+
+#plot_heatmap(ps_abund, method = "NMDS", distance = "bray")
+```
+
+# Simper Analysis
+```{r}
+simper <- simper(otu.table.diver, metadata_5000$location, permutations=999)
+options(max.print=500)
+summary(simper)
+dput(simper, file = "/Users/maggieshostak/Desktop/Saipan_2023_2025_R_Studio/Merged_2023_2025_Data/data/simp_location.txt")
+sim <- dget("/Users/maggieshostak/Desktop/Saipan_2023_2025_R_Studio/Merged_2023_2025_Data/data/simp_location.txt")
+summary(sim)
+```
+
 # Rank Abundance Curves
 ```{r}
+#
 library(BiodiversityR)
 BiodiversityRGUI()
 
@@ -689,7 +787,6 @@ data5 %>%
 
 ggsave("/Users/maggieshostak/Desktop/Saipan_2023_2025/master_data_table_top_5_plot5.tiff", width = 35, height = 20)
 ```
-
 
 # ANOSIM
 ```{r}
